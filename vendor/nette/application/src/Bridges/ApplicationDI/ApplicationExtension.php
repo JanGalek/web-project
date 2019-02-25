@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\ApplicationDI;
 
 use Composer\Autoload\ClassLoader;
@@ -16,9 +18,9 @@ use Tracy;
 /**
  * Application extension for Nette DI.
  */
-class ApplicationExtension extends Nette\DI\CompilerExtension
+final class ApplicationExtension extends Nette\DI\CompilerExtension
 {
-	public $defaults = [
+	private $defaults = [
 		'debugger' => null,
 		'errorPresenter' => 'Nette:Error',
 		'catchExceptions' => null,
@@ -39,7 +41,7 @@ class ApplicationExtension extends Nette\DI\CompilerExtension
 	private $tempFile;
 
 
-	public function __construct($debugMode = false, array $scanDirs = null, $tempDir = null)
+	public function __construct(bool $debugMode = false, array $scanDirs = null, string $tempDir = null)
 	{
 		$this->defaults['debugger'] = interface_exists(Tracy\IBarPanel::class);
 		$this->defaults['scanDirs'] = (array) $scanDirs;
@@ -71,8 +73,8 @@ class ApplicationExtension extends Nette\DI\CompilerExtension
 
 		$touch = $this->debugMode && $config['scanDirs'] ? $this->tempFile : null;
 		$presenterFactory = $builder->addDefinition($this->prefix('presenterFactory'))
-			->setClass(Nette\Application\IPresenterFactory::class)
-			->setFactory(Nette\Application\PresenterFactory::class, [new Nette\DI\Statement(
+			->setType(Nette\Application\IPresenterFactory::class)
+			->setFactory(Nette\Application\PresenterFactory::class, [new Nette\DI\Definitions\Statement(
 				Nette\Bridges\ApplicationDI\PresenterFactoryCallback::class, [1 => $this->invalidLinkMode, $touch]
 			)]);
 
@@ -82,7 +84,7 @@ class ApplicationExtension extends Nette\DI\CompilerExtension
 
 		$builder->addDefinition($this->prefix('linkGenerator'))
 			->setFactory(Nette\Application\LinkGenerator::class, [
-				1 => new Nette\DI\Statement('@Nette\Http\IRequest::getUrl'),
+				1 => new Nette\DI\Definitions\Statement('@Nette\Http\IRequest::getUrl'),
 			]);
 
 		if ($this->name === 'application') {
@@ -98,29 +100,29 @@ class ApplicationExtension extends Nette\DI\CompilerExtension
 		$all = [];
 
 		foreach ($builder->findByType(Nette\Application\IPresenter::class) as $def) {
-			$all[$def->getClass()] = $def;
+			$all[$def->getType()] = $def;
 		}
 
 		$counter = 0;
 		foreach ($this->findPresenters() as $class) {
 			if (empty($all[$class])) {
-				$all[$class] = $builder->addDefinition($this->prefix(++$counter))->setClass($class);
+				$all[$class] = $builder->addDefinition($this->prefix((string) ++$counter))
+					->setType($class);
 			}
 		}
 
 		foreach ($all as $def) {
 			$def->addTag(Nette\DI\Extensions\InjectExtension::TAG_INJECT)
-				->addTag('nette.presenter', $def->getClass());
+				->setAutowired(false);
 
-			if (is_subclass_of($def->getClass(), UI\Presenter::class)) {
+			if (is_subclass_of($def->getType(), UI\Presenter::class)) {
 				$def->addSetup('$invalidLinkMode', [$this->invalidLinkMode]);
 			}
 		}
 	}
 
 
-	/** @return string[] */
-	private function findPresenters()
+	private function findPresenters(): array
 	{
 		$config = $this->getConfig();
 		$classes = [];
@@ -142,9 +144,9 @@ class ApplicationExtension extends Nette\DI\CompilerExtension
 			$classFile = dirname($rc->getFileName()) . '/autoload_classmap.php';
 			if (is_file($classFile)) {
 				$this->getContainerBuilder()->addDependency($classFile);
-				$classes = array_merge($classes, array_keys(call_user_func(function ($path) {
+				$classes = array_merge($classes, array_keys((function ($path) {
 					return require $path;
-				}, $classFile)));
+				})($classFile)));
 			}
 		}
 

@@ -5,15 +5,17 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\DI\Extensions;
 
 use Nette;
-
+use Nette\DI\Definitions;
 
 /**
  * Decorators for services.
  */
-class DecoratorExtension extends Nette\DI\CompilerExtension
+final class DecoratorExtension extends Nette\DI\CompilerExtension
 {
 	public $defaults = [
 		'setup' => [],
@@ -29,19 +31,19 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 			if ($info['inject'] !== null) {
 				$info['tags'][InjectExtension::TAG_INJECT] = $info['inject'];
 			}
-			$info = Nette\DI\Helpers::filterArguments($info);
+			$info = Nette\DI\Config\Processor::processArguments($info);
 			$this->addSetups($type, (array) $info['setup']);
 			$this->addTags($type, (array) $info['tags']);
 		}
 	}
 
 
-	public function addSetups($type, array $setups)
+	public function addSetups(string $type, array $setups): void
 	{
 		foreach ($this->findByType($type) as $def) {
 			foreach ($setups as $setup) {
 				if (is_array($setup)) {
-					$setup = new Nette\DI\Statement(key($setup), array_values($setup));
+					$setup = new Definitions\Statement(key($setup), array_values($setup));
 				}
 				$def->addSetup($setup);
 			}
@@ -49,7 +51,7 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 	}
 
 
-	public function addTags($type, array $tags)
+	public function addTags(string $type, array $tags): void
 	{
 		$tags = Nette\Utils\Arrays::normalize($tags, true);
 		foreach ($this->findByType($type) as $def) {
@@ -58,11 +60,11 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 	}
 
 
-	private function findByType($type)
+	private function findByType(string $type): array
 	{
-		return array_filter($this->getContainerBuilder()->getDefinitions(), function ($def) use ($type) {
-			return is_a($def->getImplement(), $type, true)
-				|| ($def->getImplementMode() !== $def::IMPLEMENT_MODE_GET && is_a($def->getType(), $type, true));
+		return array_filter($this->getContainerBuilder()->getDefinitions(), function (Definitions\Definition $def) use ($type): bool {
+			return is_a($def->getType(), $type, true)
+				|| ($def instanceof Definitions\FactoryDefinition && is_a($def->getResultType(), $type, true));
 		});
 	}
 }

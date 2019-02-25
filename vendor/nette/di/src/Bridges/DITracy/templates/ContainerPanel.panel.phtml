@@ -1,10 +1,13 @@
 <?php
+declare(strict_types=1);
 
 namespace Nette\Bridges\DITracy;
 
 use Nette;
 use Tracy\Dumper;
 use Tracy\Helpers;
+
+$snapshot = [];
 
 ?>
 <style class="tracy-debug">
@@ -39,16 +42,17 @@ use Tracy\Helpers;
 		</tr>
 		</thead>
 		<tbody>
-		<?php foreach ($services as $name => $type): ?>
-		<?php $autowired = !empty($meta[Nette\DI\Container::TYPES][$type][true]) && in_array($name, $meta[Nette\DI\Container::TYPES][$type][true], true) ?>
+		<?php foreach ($types as $name => $type): ?>
+		<?php $name = (string) $name ?>
+		<?php $autowired = in_array($name, array_merge($wiring[$type][1] ?? [], $wiring[$type][2] ?? []), true) ?>
 		<tr>
-			<td class="<?= isset($registry[$name]) ? 'created' : '' ?>"><?= htmlspecialchars($name) ?></td>
+			<td class="<?= isset($instances[$name]) ? 'created' : '' ?>"><?= is_numeric($name) ? "<span title='$name'>–</span>" : htmlspecialchars($name) ?></td>
 			<td class="<?= $autowired ? 'yes' : '' ?>"><?= $autowired ? 'yes' : 'no' ?></td>
 			<td>
-				<?php if (isset($registry[$name]) && !$registry[$name] instanceof Nette\DI\Container): ?>
-					<?= Dumper::toHtml($registry[$name], [Dumper::COLLAPSE => true, Dumper::LIVE => true]); ?>
-				<?php elseif (isset($registry[$name])): ?>
-					<code><?= get_class($registry[$name]) ?></code>
+				<?php if (isset($instances[$name]) && !$instances[$name] instanceof Nette\DI\Container): ?>
+					<?= Dumper::toHtml($instances[$name], [Dumper::COLLAPSE => true, Dumper::SNAPSHOT => &$snapshot]); ?>
+				<?php elseif (isset($instances[$name])): ?>
+					<code><?= get_class($instances[$name]) ?></code>
 				<?php elseif (is_string($type)): ?>
 					<code><?= htmlspecialchars($type) ?></code>
 				<?php endif ?>
@@ -58,6 +62,8 @@ use Tracy\Helpers;
 		<?php endforeach ?>
 		</tbody>
 	</table>
+
+	<meta itemprop=tracy <?= Dumper::formatSnapshotAttribute($snapshot) ?>>
 
 	<h2>Parameters</h2>
 

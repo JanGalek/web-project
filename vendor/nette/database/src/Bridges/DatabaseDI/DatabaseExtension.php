@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\DatabaseDI;
 
 use Nette;
@@ -31,7 +33,7 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 	private $debugMode;
 
 
-	public function __construct($debugMode = false)
+	public function __construct(bool $debugMode = false)
 	{
 		$this->debugMode = $debugMode;
 	}
@@ -60,7 +62,7 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 	}
 
 
-	private function setupDatabase($config, $name)
+	private function setupDatabase(array $config, string $name): void
 	{
 		$builder = $this->getContainerBuilder();
 
@@ -105,8 +107,7 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 				->setAutowired($config['autowired']);
 
 		} else {
-			$class = method_exists(Nette\DI\Helpers::class, 'filterArguments') ? Nette\DI\Helpers::class : Nette\DI\Compiler::class;
-			$conventions = $class::filterArguments([$config['conventions']])[0];
+			$conventions = Nette\DI\Config\Processor::processArguments([$config['conventions']])[0];
 		}
 
 		$builder->addDefinition($this->prefix("$name.context"))

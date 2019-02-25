@@ -5,37 +5,48 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Security;
 
 use Nette;
 
 
 /**
- * Passwords tools.
+ * Password Hashing.
  */
 class Passwords
 {
-	use Nette\StaticClass;
+	use Nette\SmartObject;
 
-	/** @deprecated */
-	const BCRYPT_COST = 10;
+	/** @var int */
+	private $algo;
+
+	/** @var array */
+	private $options;
+
+
+	/**
+	 * See http://php.net/manual/en/password.constants.php
+	 */
+	public function __construct(int $algo = PASSWORD_DEFAULT, array $options = [])
+	{
+		$this->algo = $algo;
+		$this->options = $options;
+	}
 
 
 	/**
 	 * Computes salted password hash.
-	 * @param  string
-	 * @param  array with cost (4-31)
-	 * @return string  60 chars long
 	 */
-	public static function hash($password, array $options = [])
+	public function hash(string $password): string
 	{
-		if (isset($options['cost']) && ($options['cost'] < 4 || $options['cost'] > 31)) {
-			throw new Nette\InvalidArgumentException("Cost must be in range 4-31, $options[cost] given.");
-		}
+		$hash = isset($this)
+			? @password_hash($password, $this->algo, $this->options) // @ is escalated to exception
+			: @password_hash($password, PASSWORD_BCRYPT, func_get_args()[1] ?? []); // back compatibility with v2.x
 
-		$hash = password_hash($password, PASSWORD_BCRYPT, $options);
-		if ($hash === false || strlen($hash) < 60) {
-			throw new Nette\InvalidStateException('Hash computed by password_hash is invalid.');
+		if (!$hash) {
+			throw new Nette\InvalidStateException('Computed hash is invalid. ' . error_get_last()['message']);
 		}
 		return $hash;
 	}
@@ -43,9 +54,8 @@ class Passwords
 
 	/**
 	 * Verifies that a password matches a hash.
-	 * @return bool
 	 */
-	public static function verify($password, $hash)
+	public function verify(string $password, string $hash): bool
 	{
 		return password_verify($password, $hash);
 	}
@@ -53,12 +63,11 @@ class Passwords
 
 	/**
 	 * Checks if the given hash matches the options.
-	 * @param  string
-	 * @param  array with cost (4-31)
-	 * @return bool
 	 */
-	public static function needsRehash($hash, array $options = [])
+	public function needsRehash(string $hash): bool
 	{
-		return password_needs_rehash($hash, PASSWORD_BCRYPT, $options);
+		return isset($this)
+			? password_needs_rehash($hash, $this->algo, $this->options)
+			: password_needs_rehash($hash, PASSWORD_BCRYPT, func_get_args()[1] ?? []); // back compatibility with v2.x
 	}
 }

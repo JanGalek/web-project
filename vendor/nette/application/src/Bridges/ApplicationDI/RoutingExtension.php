@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\ApplicationDI;
 
 use Nette;
@@ -14,7 +16,7 @@ use Tracy;
 /**
  * Routing extension for Nette DI.
  */
-class RoutingExtension extends Nette\DI\CompilerExtension
+final class RoutingExtension extends Nette\DI\CompilerExtension
 {
 	public $defaults = [
 		'debugger' => null,
@@ -27,7 +29,7 @@ class RoutingExtension extends Nette\DI\CompilerExtension
 	private $debugMode;
 
 
-	public function __construct($debugMode = false)
+	public function __construct(bool $debugMode = false)
 	{
 		$this->defaults['debugger'] = interface_exists(Tracy\IBarPanel::class);
 		$this->debugMode = $debugMode;
@@ -40,7 +42,7 @@ class RoutingExtension extends Nette\DI\CompilerExtension
 		$builder = $this->getContainerBuilder();
 
 		$router = $builder->addDefinition($this->prefix('router'))
-			->setClass(Nette\Application\IRouter::class)
+			->setType(Nette\Routing\Router::class)
 			->setFactory(Nette\Application\Routers\RouteList::class);
 
 		$routeClass = $config['routeClass'] ?: 'Nette\Application\Routers\Route';
@@ -60,7 +62,7 @@ class RoutingExtension extends Nette\DI\CompilerExtension
 
 		if ($this->debugMode && $this->config['debugger'] && $application = $builder->getByType(Nette\Application\Application::class)) {
 			$builder->getDefinition($application)->addSetup('@Tracy\Bar::addPanel', [
-				new Nette\DI\Statement(Nette\Bridges\ApplicationTracy\RoutingPanel::class),
+				new Nette\DI\Definitions\Statement(Nette\Bridges\ApplicationTracy\RoutingPanel::class),
 			]);
 		}
 	}
@@ -76,8 +78,6 @@ class RoutingExtension extends Nette\DI\CompilerExtension
 					$router->warmupCache();
 				}
 				$s = serialize($router);
-			} catch (\Exception $e) {
-				throw new Nette\DI\ServiceCreationException('Unable to cache router due to error: ' . $e->getMessage(), 0, $e);
 			} catch (\Throwable $e) {
 				throw new Nette\DI\ServiceCreationException('Unable to cache router due to error: ' . $e->getMessage(), 0, $e);
 			}

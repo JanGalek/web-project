@@ -27,7 +27,7 @@
 	"autoload": {
 		"classmap": ["app/Booting.php"]
 	},
-	"minimum-stability": "stable",
+	"minimum-stability": "dev",
 	"config": {
 		"platform": {
 			"php": "7.1"

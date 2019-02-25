@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\DI\Extensions;
 
 use Nette;
@@ -13,11 +15,10 @@ use Nette;
 /**
  * DI extension.
  */
-class DIExtension extends Nette\DI\CompilerExtension
+final class DIExtension extends Nette\DI\CompilerExtension
 {
 	public $defaults = [
-		'debugger' => true,
-		'accessors' => false,
+		'debugger' => null,
 		'excluded' => [],
 		'parentClass' => null,
 	];
@@ -29,8 +30,9 @@ class DIExtension extends Nette\DI\CompilerExtension
 	private $time;
 
 
-	public function __construct($debugMode = false)
+	public function __construct(bool $debugMode = false)
 	{
+		$this->defaults['debugger'] = interface_exists(\Tracy\IBarPanel::class);
 		$this->debugMode = $debugMode;
 		$this->time = microtime(true);
 	}
@@ -56,11 +58,12 @@ class DIExtension extends Nette\DI\CompilerExtension
 		if ($this->debugMode && $this->config['debugger']) {
 			Nette\Bridges\DITracy\ContainerPanel::$compilationTime = $this->time;
 			$initialize->addBody($builder->formatPhp('?;', [
-				new Nette\DI\Statement('@Tracy\Bar::addPanel', [new Nette\DI\Statement(Nette\Bridges\DITracy\ContainerPanel::class)]),
+				new Nette\DI\Definitions\Statement('@Tracy\Bar::addPanel', [new Nette\DI\Definitions\Statement(Nette\Bridges\DITracy\ContainerPanel::class)]),
 			]));
 		}
 
 		foreach (array_filter($builder->findByTag('run')) as $name => $on) {
+			trigger_error("Tag 'run' used in service '$name' definition is deprecated.", E_USER_DEPRECATED);
 			$initialize->addBody('$this->getService(?);', [$name]);
 		}
 	}
