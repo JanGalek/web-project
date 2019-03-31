@@ -4,7 +4,7 @@ parameters:
 application:
 	errorPresenter: Error
 	mapping:
-		*: App\*Module\Presenters\*Presenter
+		*: Project\Presentation\*Module\Presenters\*Presenter
 
 
 session:
@@ -12,4 +12,4 @@ session:
 
 
 services:
-	router: App\Router\RouterFactory::createRouter
+	router: Project\Router\RouterFactory::createRouter
